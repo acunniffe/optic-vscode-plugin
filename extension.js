@@ -23,10 +23,11 @@ const helpers = {
 		return lines.join('').length + bufferedRange.line + bufferedRange.character
 	}
 }
-
+let preventChangeEvent = false;
 // this method is called when your extension is activated, which package.json defines as when vs code loads
 function activate(context) {
 	vscode.workspace.onDidChangeTextDocument((event) => {
+		preventChangeEvent = true;
 		if(!event.contentChanges.length) {
 			return
 		}
@@ -52,10 +53,14 @@ function activate(context) {
 		} catch (e) {
 			console.error(e)
 		}
+		setTimeout(() => {
+			preventChangeEvent = false;
+		}, 300);
 	})
 	
 	
 	vscode.window.onDidChangeTextEditorSelection((event)=> {
+		if(preventChangeEvent) return;
 		const document = event.textEditor.document
 		const file = document.uri.path
 		const contents = document.getText()
