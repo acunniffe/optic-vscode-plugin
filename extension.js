@@ -24,10 +24,8 @@ const helpers = {
 	}
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+// this method is called when your extension is activated, which package.json defines as when vs code loads
 function activate(context) {
-	console.log('activated');
 	vscode.workspace.onDidChangeTextDocument((event) => {
 		if(!event.contentChanges.length) {
 			return
@@ -80,17 +78,23 @@ function activate(context) {
 
 	})
 
+	/* 
+	//VSCode actually automatically updates the text editor as Optic saves the updates to disk
+	//So no need for the below code.  Leaving in in case it is needed later.
 	editorConnection.onFilesUpdated((msg)=> {
 		const fileNames = Object.keys(msg.updates)
-  
+
 		fileNames.forEach((file)=> {
 			vscode.workspace.openTextDocument(file).then((document)=> {
 				let fullText = document.getText()
-				let range = new vscode.Range(document.positionAt(0), document.positionAt(fullText.length - 1))
-				vscode.TextEdit.replace(range, msg.updates[file])
+				let range = new vscode.Range(document.positionAt(0), document.positionAt(fullText.length))
+				let edit = new vscode.WorkspaceEdit()
+				edit.replace(vscode.Uri.file(file), range, msg.updates[file])
+				vscode.workspace.applyEdit(edit)
 			})
 		})
 	})
+	*/
 }
 
 exports.activate = activate
