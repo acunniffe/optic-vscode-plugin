@@ -4,7 +4,9 @@
 const vscode = require('vscode')
 const EditorConnection = require('optic-editor-sdk/lib/EditorConnection').EditorConnection
 const editorConnection = EditorConnection({name: 'vscode'})
-const checkForSearch = require('optic-editor-sdk/lib/EditorConnection').checkForSearch
+// const checkForSearch = require('optic-editor-sdk/lib/EditorConnection').checkForSearch
+const debugMode = false;
+let preventChangeEvent = false; //Debounce for cursor change event after adding a character
 
 const helpers = {
 	getLineText:(line, document) => {
@@ -21,41 +23,70 @@ const helpers = {
 		}
 
 		return lines.join('').length + bufferedRange.line + bufferedRange.character
+	},
+	log:(...args) => {
+		if(debugMode) {
+			console.log.apply(console, args);
+		}
+	},
+	checkForSearch: function(line, start, end) {
+		//Modified from EditorConnection.js to work with VS Code
+		//When backspacing, start and end values are different so don't bother checking
+		let searchRegex = /^[\s]*\/\/\/[\s]*(.+)/;
+		let match = searchRegex.exec(line);
+
+		let isSearch = match !== null;
+		return {
+			isSearch: isSearch,
+			query: match !== null ? match[1].trim() : undefined
+		};
 	}
 }
 
 // this method is called when your extension is activated, which package.json defines as when vs code loads
 function activate(context) {
 	vscode.workspace.onDidChangeTextDocument((event) => {
+		preventChangeEvent = true;
+
 		if(!event.contentChanges.length) {
 			return
 		}
 		const document = event.document
 		const file = document.uri.path
 		const contents = document.getText()
-		const range = event.contentChanges[0].range
+		const contentChange = event.contentChanges[0]
+		const range = contentChange.range
 		const start = helpers.bufferedRangeToRange(range.start, document)
 		const end = helpers.bufferedRangeToRange(range.end, document)
 		
 		const line = helpers.getLineText(range.start, document)
 		const startInLine = range.start.character
 		const endInline = (range.end.line !== range.start.line) ? line.length - 1 : range.end.character
-		const searchCheck = checkForSearch(line, startInLine, endInline)
+		const searchCheck = helpers.checkForSearch(line, startInLine, endInline)
 
 		try {
 			if (searchCheck.isSearch) {
+				helpers.log('Text change: Send search to optic', searchCheck.query);
 				editorConnection.actions.search(file, start, end, searchCheck.query, contents)
 			} else {
+				helpers.log('Text change: Send context to optic', contentChange.text);
 				editorConnection.actions.context(file, start, end, contents)
 			}
 
 		} catch (e) {
 			console.error(e)
 		}
+		
+		setTimeout(() => {
+			preventChangeEvent = false;
+		}, 300);
+
 	})
 	
 	
 	vscode.window.onDidChangeTextEditorSelection((event)=> {
+		if(preventChangeEvent) return;
+
 		const document = event.textEditor.document
 		const file = document.uri.path
 		const contents = document.getText()
@@ -66,10 +97,11 @@ function activate(context) {
 		const line = helpers.getLineText(range.start, document)
 		const startInLine = range.start.character
 		const endInline = (range.end.line !== range.start.line) ? line.length - 1 : range.end.character
-		const searchCheck = checkForSearch(line, startInLine, endInline)
+		const searchCheck = helpers.checkForSearch(line, startInLine, endInline)
 
 		try {
 			if (!searchCheck.isSearch) {
+				helpers.log('\nSelection change: Send context to optic', document.getText(range));
 				editorConnection.actions.context(file, start, end, contents)
 			}
 		} catch (e) {
