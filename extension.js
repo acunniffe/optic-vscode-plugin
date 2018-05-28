@@ -3,7 +3,7 @@
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode')
 const EditorConnection = require('optic-editor-sdk/lib/EditorConnection').EditorConnection
-const editorConnection = EditorConnection({name: 'vscode'})
+let editorConnection = EditorConnection({name: 'vscode', autorefreshes: true})
 // const checkForSearch = require('optic-editor-sdk/lib/EditorConnection').checkForSearch
 const debugMode = false;
 let preventChangeEvent = false; //Debounce for cursor change event after adding a character
@@ -40,6 +40,25 @@ const helpers = {
 			isSearch: isSearch,
 			query: match !== null ? match[1].trim() : undefined
 		};
+	},
+	onFilesUpdatedHandler: function(msg) {
+		const fileNames = Object.keys(msg.updates)
+		fileNames.forEach((file)=> {
+			vscode.workspace.openTextDocument(file).then((document)=> {
+				let fullText = document.getText()
+				let range = new vscode.Range(document.positionAt(0), document.positionAt(fullText.length))
+				let edit = new vscode.WorkspaceEdit()
+				edit.replace(vscode.Uri.file(file), range, msg.updates[file])
+				vscode.workspace.applyEdit(edit)
+				console.log('save doc', document)
+				document.save()
+				// vscode.workspace.saveAll
+			})
+		})
+	},
+	reconnectEditorConnection: function() {
+		editorConnection = EditorConnection({name: 'vscode', autorefreshes: true})
+		editorConnection.onFilesUpdated(helpers.onFilesUpdatedHandler)
 	}
 }
 
@@ -75,6 +94,7 @@ function activate(context) {
 
 		} catch (e) {
 			console.error(e)
+			helpers.reconnectEditorConnection();
 		}
 		
 		setTimeout(() => {
@@ -106,27 +126,13 @@ function activate(context) {
 			}
 		} catch (e) {
 			console.error(e)
+			helpers.reconnectEditorConnection();
 		}
 
 	})
 
-	/* 
-	//VSCode actually automatically updates the text editor as Optic saves the updates to disk
-	//So no need for the below code.  Leaving in in case it is needed later.
-	editorConnection.onFilesUpdated((msg)=> {
-		const fileNames = Object.keys(msg.updates)
-
-		fileNames.forEach((file)=> {
-			vscode.workspace.openTextDocument(file).then((document)=> {
-				let fullText = document.getText()
-				let range = new vscode.Range(document.positionAt(0), document.positionAt(fullText.length))
-				let edit = new vscode.WorkspaceEdit()
-				edit.replace(vscode.Uri.file(file), range, msg.updates[file])
-				vscode.workspace.applyEdit(edit)
-			})
-		})
-	})
-	*/
+	editorConnection.onFilesUpdated(helpers.onFilesUpdatedHandler)
+	
 }
 
 exports.activate = activate
