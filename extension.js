@@ -50,13 +50,18 @@ const helpers = {
 				let edit = new vscode.WorkspaceEdit()
 				edit.replace(vscode.Uri.file(file), range, msg.updates[file])
 				vscode.workspace.applyEdit(edit)
-				console.log('save doc', document)
-				document.save()
-				// vscode.workspace.saveAll
+				helpers.log('Saving ', file);
+				document.save().then((result) => {
+					helpers.log('Document save result: ', result)
+				},
+				(reason) => {
+					helpers.log('Document save rejected', reason)
+				})
 			})
 		})
 	},
 	reconnectEditorConnection: function() {
+		//Used for when socket loses connection (VS Code seems to disconnect after app is in background for a minute or two)
 		editorConnection = EditorConnection({name: 'vscode', autorefreshes: true})
 		editorConnection.onFilesUpdated(helpers.onFilesUpdatedHandler)
 	}
