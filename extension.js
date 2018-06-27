@@ -4,6 +4,7 @@
 const vscode = require('vscode')
 const EditorConnection = require('optic-editor-sdk/lib/EditorConnection').EditorConnection
 let editorConnection = EditorConnection({name: 'vscode', autorefreshes: true})
+const exec = require('child_process').exec
 // const checkForSearch = require('optic-editor-sdk/lib/EditorConnection').checkForSearch
 const debugMode = false;
 let preventChangeEvent = false; //Debounce for cursor change event after adding a character
@@ -69,6 +70,7 @@ const helpers = {
 
 // this method is called when your extension is activated, which package.json defines as when vs code loads
 function activate(context) {
+	exec('open /Applications/Optic.app')
 	vscode.workspace.onDidChangeTextDocument((event) => {
 		preventChangeEvent = true;
 

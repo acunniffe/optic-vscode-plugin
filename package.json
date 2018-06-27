@@ -2,7 +2,7 @@
     "name": "optic",
     "displayName": "optic",
     "description": "A lightweight plugin that allows you to use VS Code & Optic",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "repository": {
         "type": "git",
         "url": "git://github.com/opticdev/optic-vscode-plugin"
